@@ -1,7 +1,4 @@
-folder-whitelist = (name) ->
-  return true
-
-angular.module 'app.controllers' <[ui.router ngCookies]>
+angular.module 'app.controllers' <[ui.state ngCookies]>
 .controller AppCtrl: <[$scope $window $state $rootScope $timeout]> ++ ($scope, $window, $state, $rootScope, $timeout) ->
   $scope.$watch '$state.current.name' ->
     $scope.irc-enabled = true if it is \irc
@@ -14,9 +11,8 @@ angular.module 'app.controllers' <[ui.router ngCookies]>
   <- $timeout _, 10s * 1000ms
   $rootScope.hideGithubRibbon = true
 
-.controller HackFolderCtrl: <[$scope $sce $window $state $cookies $q HackFolder hackId]> ++ ($scope, $sce, $window, $state, $cookies, $q, HackFolder, hackId) ->
+.controller HackFolderCtrl: <[$scope $sce $window $state $cookies HackFolder]> ++ ($scope, $sce, $window, $state, $cookies, HackFolder) ->
   $scope <<< do
-    hackId: hackId
     hasViewMode: -> it?match /g(doc|present|draw)/
     sortableOptions: do
       update: -> console?log \notyetupdated
@@ -31,7 +27,7 @@ angular.module 'app.controllers' <[ui.router ngCookies]>
         window.open doc.url, doc.id
         return true
       else
-        $scope.go "/#{ hackId }/#{ decodeURIComponent doc.id }"
+        $scope.go "/#{ $scope.hackId }/#{ decodeURIComponent doc.id }"
     open: (doc) ->
       window.open doc.url, doc.id
       return false
@@ -41,8 +37,9 @@ angular.module 'app.controllers' <[ui.router ngCookies]>
         console?log \folder!!
     saveBtn: void
     saveModalOpts: dialogFade: true
+    saveModalOpen: false
     showSaveModal: (show,rm,e)->
-      $ '.ui.modal.save' .modal \toggle, show
+      $scope.saveModalOpen = show
       if e => $scope.saveBtn = $ e.target
       if rm =>
         $cookies.savebtn = \consumed
@@ -53,12 +50,9 @@ angular.module 'app.controllers' <[ui.router ngCookies]>
     barframeSrc: (entry) ->
       src = entry.opts.bar.replace /\{(\w+)\}/g, -> entry[&1]
       $sce.trustAsResourceUrl src
-    iframeCallback: (doc={}) -> (status) -> $scope.$apply ->
+    iframeCallback: (doc) -> (status) -> $scope.$apply ->
       console?log \iframecb status, doc
-      # set current title for phone and tablet view,
-      # please also check hack.jade.
-      $state.current.title = doc.title
-      document.title = "#{doc.title} – hackfoldr" if doc.title
+      $state.current.title = "#{doc.title} – hackfoldr"
       if status is \fail
         doc.noiframe = true
       else
@@ -66,53 +60,37 @@ angular.module 'app.controllers' <[ui.router ngCookies]>
       doc.iframeunsure = true if status is \unsure
 
     debug: -> console?log it, @
-    reload: -> HackFolder.getIndex hackId, true ->
+    reload: (hackId) -> HackFolder.getIndex hackId, true ->
 
-  unless folder-whitelist hackId
-    return $window.location.href = "http://hackfoldr.org/#{$window.location.pathname}"
-
-  $scope.$watch '$state.params.docId' (docId) ->
-    $scope.docId = encodeURIComponent docId if docId
-  loaded = $q.defer!
-  loaded.promise.then -> $scope.$watch 'docId' (docId) ->
-    if docId?
-      if $state.params.docId is $scope.first?id
-        $state.transitionTo 'hack.doc', { docId: "", hackId }
-    else
-      if $scope.first?id
-        $scope.docId ?= that
-        $state.transitionTo 'hack.doc', { docId: "", hackId }
-        return
-    doc = HackFolder.activate docId if docId
-    if doc?type is \hackfoldr
-      $scope.show-index = true
-      folder-title, docs, tree <- HackFolder.load-remote-csv doc.id
-      [entry] = [entry for entry in HackFolder.tree when entry.id is docId]
-      entry.tagFilter = entry.tags?0?content
-      unless entry.children
-        entry.children ?= tree?0.children
-        HackFolder.docs.splice docs.length, 0, ...docs
-      $scope.indexDocs = docs
-      $scope.indexSearch = hackId.replace /^g0v-/,''
-    else
-      $scope.show-index = false
-  $scope.show-index = $state.current.name is \hack.index
-  return if $scope.show-index
+  $scope.$watch 'hackId' (hackId) ->
+    <- HackFolder.getIndex hackId, false
+    $scope.$watch 'docId' (docId) ->
+      doc = HackFolder.activate docId if docId
+      if doc?type is \hackfoldr
+        $scope.show-index = true
+        folder-title, docs, tree <- HackFolder.load-remote-csv doc.id
+        [entry] = [entry for entry in HackFolder.tree when entry.id is docId]
+        entry.tagFilter = entry.tags?0?content
+        unless entry.chidlren
+          entry.children ?= tree?0.children
+          HackFolder.docs.splice docs.length, 0, ...docs
+        $scope.indexDocs = docs
+        $scope.indexSearch = hackId.replace /^g0v-/,''
+      else
+        $scope.show-index = false
+    $scope.show-index = $state.current.name is \hack.index
+    return if $scope.show-index
+    unless $scope.docId
+      if HackFolder.docs.0?id
+        $state.transitionTo 'hack.doc', { docId: that, hackId: $scope.hackId}
 
   $scope.collapsed = $cookies.collapsed ? $window.innerWidth < 768
-  $scope.collapsed = false if $scope.collapsed is 'false'
-
   $scope.$watch 'collapsed' -> if it?
-    $cookies.collapsed = !!it
+    $cookies.collapsed = it
 
-  $scope.sidebar = false
-  $scope.toggleSidebar = ->
-    $scope.collapsed = false
-    $scope.sidebar = !$scope.sidebar
-  <- HackFolder.getIndex hackId, false
-  <- $scope.$safeApply $scope
-  [$scope.first] = [d for d in HackFolder.docs when d.url]
-  loaded.resolve!
+  $scope.hackId = if $state.params.hackId => that else 'infographics.tw'
+  $scope.$watch '$state.params.docId' (docId) ->
+    $scope.docId = encodeURIComponent encodeURIComponent docId if docId
 
 .directive 'resize' <[$window]> ++ ($window) ->
   (scope, element, attrs) ->
@@ -164,7 +142,7 @@ angular.module 'app.controllers' <[ui.router ngCookies]>
   link: ($scope, element, attrs) ->
     cb = $parse attrs.ngxClickMeta
 
-    is-meta = if navigator.appVersion.match /(Win|X11)/
+    is-meta = if navigator.appVersion.match /Win/
       -> it.ctrlKey
     else
       -> it.metaKey
@@ -184,7 +162,7 @@ angular.module 'app.controllers' <[ui.router ngCookies]>
   (scope, element, attrs) ->
     has-scrollbar = ->
       $index = $('.index')
-      scope.has-scrollbar = $index.get(0).scrollHeight > $window.innerHeight - $('.ui.menu').height()
+      scope.has-scrollbar = $index.get(0).scrollHeight > $window.innerHeight - $('.navbar').height()
     angular.element $window .bind \resize ->
       scope.$apply has-scrollbar
     scope.$watch 'docs' has-scrollbar
@@ -241,46 +219,19 @@ angular.module 'app.controllers' <[ui.router ngCookies]>
 
     getIndex: (id, force, cb) ->
       return cb docs if hackId is id and !force
-
-      if local-storage[id] and !force
-        csv = try JSON.parse local-storage[id]
-        if csv
-          hackId := id
-          folder-title, docs <- @load-csv csv, docs, tree
-          self.folder-title = folder-title
-          cb docs
-
-      # TODO: This should obtain the redirected ID from A1
-      # See: https://github.com/hackfoldr/hackfoldr-2.0/issues/16
-      const EthercalcToGoogleDocMap = {
-        'Kaohsiung-explode-20140801': '1WVWrKC-Tbry3ltgouQPpZH2Cd2HkKeZ8DjLs4PWa1z4'
-      }
-
       retry = 0
-      if (EthercalcToGoogleDocMap[id] || id) is /^[-\w]{40}[-\w]*$/ then doit = ~>
-        callback = ~> for own k, sheet of it
-          docs.length = 0
-          hackId := id
-          csv = sheet.to-array!
-          @process-csv csv, id, cb
-          return
-        Tabletop.init { key: (EthercalcToGoogleDocMap[id] || id), callback, -simpleSheet }
-      else doit = ~>
+      doit = ~>
         csv <~ $http.get "https://www.ethercalc.org/_/#{id}/csv"
         .error -> return if ++retry > 3; setTimeout doit, 1000ms
         .success
 
         hackId := id
         docs.length = 0
-        @process-csv csv, id, cb
+        @process-csv csv, cb
       doit!
 
 
-    process-csv: (csv, id, cb) ->
-      if typeof csv is \string
-        csv -= /^\"?#.*\n/gm
-        csv = CSV.parse(csv)
-      local-storage[id] = JSON.stringify csv
+    process-csv: (csv, cb) ->
       folder-title, docs <- @load-csv csv, docs, tree
       self.folder-title = folder-title
       cb docs
@@ -294,11 +245,11 @@ angular.module 'app.controllers' <[ui.router ngCookies]>
       cb folder-title, docs, tree
 
     load-csv: (csv, docs, tree, cb) ->
-      data = csv
+      csv -= /^\"?#.*\n/gm
       var folder-title
       folder-opts = {}
-      entries = for line in data | line?length
-        [url, title, opts, tags, summary, ...rest] = line
+      entries = for line in CSV.parse(csv) | line.length
+        try [url, title, opts, tags, summary, ...rest] = line
         continue unless title
         title -= /^"|"$/g
         opts -= /^"|"$/g if opts
@@ -306,9 +257,7 @@ angular.module 'app.controllers' <[ui.router ngCookies]>
           opts = try JSON.parse opts.replace /""/g '"'
         opts ?= {}
         tags -= /^"|"$/g if tags
-        matched = url.match /^"?(\s*)(\S+?)?(#\S+?)?\s*"?$/
-        continue unless matched?length
-        [_, prefix, url, hashtag] = matched
+        [_, prefix, url, hashtag] = url.match /^"?(\s*)(\S+?)?(#\S+?)?\s*"?$/
         entry = { summary, hashtag, url, title, indent: prefix.length, opts: {} <<< folder-opts <<< opts } <<< match url
         | void
             unless folder-title
@@ -399,9 +348,3 @@ angular.module 'app.controllers' <[ui.router ngCookies]>
         it
       tree.splice 0, tree.length, ...nested
       cb folder-title, docs
-
-.directive \ngxTooltip ->
-  ($scope, element, attrs) ->
-    $ element .popup do
-      position: "right center"
-      duration: 1ms # the popup will not close if you set this to 0

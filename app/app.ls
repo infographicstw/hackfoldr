@@ -2,31 +2,27 @@
 
 angular.module('scroll', []).value('$anchorScroll', angular.noop)
 
-angular.module \app <[ui app.templates app.controllers ui.router ui.router.stateHelper]>
-.config <[stateHelperProvider $urlRouterProvider $locationProvider]> ++ (stateHelperProvider, $urlRouterProvider, $locationProvider) ->
-  stateHelperProvider.setNestedState do
-    name: 'about'
-    url: '/about'
-    template-url: 'partials/about.html'
-  stateHelperProvider.setNestedState do
-    name: 'hack'
-    url: '/{hackId:[^/]{1,}}'
-    template-url: 'partials/hack.html'
-    resolve:
-      hackId: <[$stateParams]> ++ (.hackId)
-    controller: 'HackFolderCtrl'
-    onEnter: ->
-      $ \body .addClass \hide-overflow
-    onExit: ->
-      $ \body .removeClass \hide-overflow
-    children:
-      * name: 'index'
-        url: '/__index'
-      * name: 'doc'
-        url: '/{docId}'
+angular.module \app <[ui app.templates app.controllers ui.state ui.bootstrap]>
+.config <[$stateProvider $urlRouterProvider $locationProvider]> ++ ($stateProvider, $urlRouterProvider, $locationProvider) ->
+  $stateProvider
+    .state 'about' do
+      url: '/about'
+      templateUrl: 'partials/about.html'
+    .state 'hack' do
+      url: '/{hackId}'
+      templateUrl: 'partials/hack.html'
+      controller: \HackFolderCtrl
+      onEnter: ->
+        $ \body .addClass \hide-overflow
+      onExit: ->
+        $ \body .removeClass \hide-overflow
+    .state 'hack.index' do
+      url: '/__index'
+    .state 'hack.doc' do
+      url: '/{docId}'
 
   $urlRouterProvider
-    .otherwise('/about')
+    .otherwise('/infographics.tw')
 
   $locationProvider.html5Mode true
 
@@ -37,7 +33,7 @@ angular.module \app <[ui app.templates app.controllers ui.router ui.router.state
   $rootScope._build = require 'config.jsenv' .BUILD
   $rootScope.$on \$stateChangeSuccess (e, {name}) ->
     window?ga? 'send' 'pageview' page: $location.$$url, title: name
-  $rootScope.$safeApply = ($scope, fn) ->
+  $rootScope.safeApply = ($scope, fn) ->
     phase = $scope.$root.$$phase
     if (phase is '$apply' || phase is '$digest')
       fn?!

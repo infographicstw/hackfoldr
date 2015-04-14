@@ -1,8 +1,8 @@
 {
-  "DOMAIN_NAME": "hackfoldr.org",
-  "GITHUB_ACCOUNT": "hackfoldr",
-  "HACKFOLDR_ID": "congressoccupied",
-  "GA_ID": "UA-39804485-1",
+  "DOMAIN_NAME": "hack.infographics.tw",
+  "GITHUB_ACCOUNT": "infographicstw",
+  "HACKFOLDR_ID": "infographics.tw",
+  "GA_ID": "UA-59333798-1",
   "BUILD": "git-unknown",
-  "GOOGLE_API_BROWSER_APPLICATION_KEY": "AIzaSyDN3lT4KenTRpKGvoD1Cbw5yqMxR2iKBes"
+  "GOOGLE_API_BROWSER_APPLICATION_KEY": "AIzaSyCRhaVnOLLRA5OikUd9Pw4z5qEqzqfcI-Y"
 }
