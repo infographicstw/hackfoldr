@@ -1,4 +1,4 @@
-angular.module 'app.controllers' <[ui.state ngCookies]>
+angular.module 'app.controllers' <[ui.router.state ngCookies]>
 .controller AppCtrl: <[$scope $window $state $rootScope $timeout]> ++ ($scope, $window, $state, $rootScope, $timeout) ->
   $scope.$watch '$state.current.name' ->
     $scope.irc-enabled = true if it is \irc
